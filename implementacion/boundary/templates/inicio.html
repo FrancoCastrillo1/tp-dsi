@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block titulo %}Inicio · Bolsines{% endblock %}
+{% block contenido %}
+  <h1>Menú del Encargado de Bolsines</h1>
+  <div class="tarjeta">
+    <a class="boton primario" href="{{ url_for('opcionRegistrarRecepcionBolsin') }}">Registrar recepción de bolsín</a>
+  </div>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block titulo %}Registrar recepción de bolsín{% endblock %}
+{% block contenido %}
+  <div class="encabezado">
+    <h1>Registrar recepción de bolsín</h1>
+    <form method="post" action="{{ url_for('cancelar') }}">
+      <button class="boton" type="submit">{{ 'Volver al menú' if finalizado else 'Cancelar' }}</button>
+    </form>
+  </div>
+
+  {% if cmUsuario %}
+    <p class="contexto">CM del usuario logueado: <strong>{{ cmUsuario }}</strong> · Empleado: {{ empleado }}</p>
+  {% endif %}
+
+  {% for m in mensajes %}
+    <div class="mensaje {{ m.tipo }}">{{ m.texto }}</div>
+  {% endfor %}
+
+  {# ---------- Resultado final ---------- #}
+  {% if resultado %}
+    <section class="tarjeta">
+      <h2>Bolsín {{ resultado.numeroBolsin }}: situación registrada</h2>
+      {% for r in resultado.remitos %}
+        <h3>Remito {{ r.numero }} <span class="etiqueta">{{ r.estado }}</span></h3>
+        <table>
+          <thead><tr><th>Nro.</th><th>Asunto</th><th>Tipo</th><th>Estado</th></tr></thead>
+          <tbody>
+          {% for d in r.documentacion %}
+            <tr><td>{{ d.numero }}</td><td>{{ d.asunto }}</td><td>{{ d.tipo }}</td>
+                <td><span class="etiqueta">{{ d.estado }}</span></td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      {% endfor %}
+      <p class="nota">Notificación de recepción (CU 29) enviada a: {{ resultado.notificaciones | join(', ') }}</p>
+      <a class="boton primario" href="{{ url_for('opcionRegistrarRecepcionBolsin') }}">Registrar otra recepción</a>
+    </section>
+  {% elif not finalizado %}
+
+    {# ---------- Pasos 3-5: listado y filtro de bolsines ---------- #}
+    {% if solicitaFiltro %}
+      <section class="tarjeta">
+        <h2>Bolsines enviados</h2>
+        <form class="filtro" method="post" action="{{ url_for('tomarFiltro') }}">
+          <label>Nro. de precinto <input name="precinto" value="{{ filtro.precinto }}" inputmode="numeric"></label>
+          <label>CM origen <input name="cmOrigen" value="{{ filtro.cmOrigen }}"></label>
+          <button class="boton" type="submit">Filtrar</button>
+        </form>
+
+        {% if solicitaSeleccionBolsin and bolsines %}
+          <form method="post" action="{{ url_for('tomarSeleccionBolsin') }}">
+            <table>
+              <thead><tr><th></th><th>CM origen</th><th>Nro. de precinto</th></tr></thead>
+              <tbody>
+              {% for b in bolsines %}
+                <tr>
+                  <td><input type="radio" name="numeroBolsin" value="{{ b.numeroBolsin }}" id="b{{ b.numeroBolsin }}"
+                             {% if bolsinSeleccionado == b.numeroBolsin %}checked{% endif %} required></td>
+                  <td><label for="b{{ b.numeroBolsin }}">{{ b.cmOrigen }}</label></td>
+                  <td>{{ b.numeroPrecinto }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+            <button class="boton primario" type="submit">Seleccionar bolsín</button>
+          </form>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {# ---------- Pasos 6-8: remitos, documentación y opciones ---------- #}
+    {% if remitos %}
+      <section class="tarjeta">
+        <h2>Contenido registrado del bolsín</h2>
+        <form method="post" action="{{ url_for('tomarSeleccionOpcion') }}">
+          {% set editable = solicitaOpcion %}
+          {% for r in remitos %}
+            <h3>Remito {{ r.numero }}</h3>
+            <table>
+              <thead><tr><th title="Documentación afectada (opciones 2, 3 y 4)">Afectada</th>
+                         <th>Asunto</th><th>Tipo de documentación</th></tr></thead>
+              <tbody>
+              {% for d in r.documentacion %}
+                <tr>
+                  <td><input type="checkbox" name="documentacion" value="{{ d.numero }}"
+                             {% if d.numero in docsMarcados %}checked{% endif %}
+                             {% if not editable %}disabled{% endif %}></td>
+                  <td>{{ d.asunto }}</td>
+                  <td>{{ d.tipo }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          {% endfor %}
+
+          <h3>Opciones de recepción</h3>
+          <div class="opciones">
+          {% for numero, texto in opciones.items() %}
+            <label class="opcion">
+              <input type="radio" name="opcion" value="{{ numero }}" required
+                     {% if opcionSeleccionada == numero %}checked{% endif %}
+                     {% if not editable %}disabled{% endif %}>
+              {{ numero }}. {{ texto }}
+            </label>
+          {% endfor %}
+          </div>
+          <p class="nota">Para las opciones 2, 3 y 4 marque la documentación afectada; el resto se registra como Recibida y Aceptada.</p>
+          {% if editable %}
+            <button class="boton primario" type="submit">Registrar recepción</button>
+          {% endif %}
+        </form>
+      </section>
+    {% endif %}
+
+    {# ---------- Pasos 9-10: confirmación ---------- #}
+    {% if confirmacion %}
+      <section class="tarjeta destacada">
+        <h2>Confirmar registro</h2>
+        <ul>
+          <li>Bolsín {{ confirmacion.numeroBolsin }} · precinto {{ confirmacion.numeroPrecinto }} · CM destino {{ confirmacion.cmDestino }}</li>
+          <li>Opción: {{ confirmacion.opcion }}</li>
+          {% if confirmacion.documentacionAfectada %}
+            <li>Documentación {{ confirmacion.documentacionAfectada | join(', ') }} pasará a <strong>{{ confirmacion.estadoDocAfectada }}</strong>; el resto, a Recibida y Aceptada.</li>
+          {% else %}
+            <li>Toda la documentación pasará a <strong>Recibida y Aceptada</strong>.</li>
+          {% endif %}
+        </ul>
+        <form class="acciones" method="post" action="{{ url_for('tomarSeleccionConfirmacion') }}">
+          <button class="boton primario" name="confirma" value="si" type="submit">Confirmar</button>
+          <button class="boton" name="confirma" value="no" type="submit">No confirmar</button>
+        </form>
+      </section>
+    {% endif %}
+  {% endif %}
+{% endblock %}
