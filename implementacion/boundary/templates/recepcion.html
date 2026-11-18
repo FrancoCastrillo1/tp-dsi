@@ -1,67 +1,128 @@
 {% extends "base.html" %}
 {% block titulo %}Registrar recepción de bolsín{% endblock %}
+
+{% macro etiquetaEstado(estado) -%}
+  {%- set clases = {
+        'Recibida y Aceptada': 'ok', 'Recibido y Aceptado': 'ok', 'Recibido en CM destino': 'ok',
+        'Recibido y Aceptado Parcial': 'alerta',
+        'Recibida y Rechazada': 'peligro', 'No recibida': 'peligro',
+        'En bolsín enviado': 'neutro', 'Enviado': 'neutro'} -%}
+  <span class="etiqueta {{ clases.get(estado, 'neutro') }}">{{ estado }}</span>
+{%- endmacro %}
+
+{% block usuario %}
+  {% if cmUsuario %}
+    <div class="usuario" title="Usuario logueado">
+      <span class="avatar" aria-hidden="true">{{ empleado[:1] }}</span>
+      <span class="usuario-datos">
+        <span class="usuario-nombre">{{ empleado }}</span>
+        <span class="usuario-cm">{{ cmUsuario }}</span>
+      </span>
+    </div>
+  {% endif %}
+{% endblock %}
+
 {% block contenido %}
+  {% if resultado %}{% set paso = 4 %}
+  {% elif confirmacion %}{% set paso = 3 %}
+  {% elif remitos %}{% set paso = 2 %}
+  {% else %}{% set paso = 1 %}{% endif %}
+
   <div class="encabezado">
-    <h1>Registrar recepción de bolsín</h1>
+    <div>
+      <p class="antetitulo">CU 28</p>
+      <h1>Registrar recepción de bolsín</h1>
+      {% if cmUsuario %}
+        <p class="contexto">CM del usuario logueado: <strong>{{ cmUsuario }}</strong> · Empleado: {{ empleado }}</p>
+      {% endif %}
+    </div>
     <form method="post" action="{{ url_for('cancelar') }}">
       <button class="boton" type="submit">{{ 'Volver al menú' if finalizado else 'Cancelar' }}</button>
     </form>
   </div>
 
-  {% if cmUsuario %}
-    <p class="contexto">CM del usuario logueado: <strong>{{ cmUsuario }}</strong> · Empleado: {{ empleado }}</p>
-  {% endif %}
+  <ol class="pasos" aria-label="Progreso del caso de uso">
+    {% for texto in ['Seleccionar bolsín', 'Revisar contenido', 'Confirmar', 'Resultado'] %}
+      <li class="{{ 'hecho' if loop.index < paso else ('actual' if loop.index == paso else '') }}"
+          {% if loop.index == paso %}aria-current="step"{% endif %}>
+        <span class="paso-num">{{ '✓' if loop.index < paso else loop.index }}</span>
+        <span class="paso-texto">{{ texto }}</span>
+      </li>
+    {% endfor %}
+  </ol>
 
   {% for m in mensajes %}
-    <div class="mensaje {{ m.tipo }}">{{ m.texto }}</div>
+    <div class="mensaje {{ m.tipo }}" role="{{ 'alert' if m.tipo == 'error' else 'status' }}">
+      <span class="mensaje-icono" aria-hidden="true">{{ {'error': '!', 'exito': '✓'}.get(m.tipo, 'i') }}</span>
+      <span>{{ m.texto }}</span>
+    </div>
   {% endfor %}
 
   {# ---------- Resultado final ---------- #}
   {% if resultado %}
     <section class="tarjeta">
-      <h2>Bolsín {{ resultado.numeroBolsin }}: situación registrada</h2>
+      <div class="tarjeta-cabecera">
+        <h2>Bolsín {{ resultado.numeroBolsin }}: situación registrada</h2>
+      </div>
       {% for r in resultado.remitos %}
-        <h3>Remito {{ r.numero }} <span class="etiqueta">{{ r.estado }}</span></h3>
-        <table>
-          <thead><tr><th>Nro.</th><th>Asunto</th><th>Tipo</th><th>Estado</th></tr></thead>
-          <tbody>
-          {% for d in r.documentacion %}
-            <tr><td>{{ d.numero }}</td><td>{{ d.asunto }}</td><td>{{ d.tipo }}</td>
-                <td><span class="etiqueta">{{ d.estado }}</span></td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+        <div class="remito">
+          <h3>Remito {{ r.numero }} {{ etiquetaEstado(r.estado) }}</h3>
+          <div class="tabla-scroll">
+          <table>
+            <thead><tr><th>Nro.</th><th>Asunto</th><th>Tipo</th><th>Estado</th></tr></thead>
+            <tbody>
+            {% for d in r.documentacion %}
+              <tr><td class="num">{{ d.numero }}</td><td>{{ d.asunto }}</td><td>{{ d.tipo }}</td>
+                  <td>{{ etiquetaEstado(d.estado) }}</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          </div>
+        </div>
       {% endfor %}
-      <p class="nota">Notificación de recepción (CU 29) enviada a: {{ resultado.notificaciones | join(', ') }}</p>
+      <div class="aviso-correo">
+        <span aria-hidden="true">✉</span>
+        <span>Notificación de recepción (CU 29) enviada a: <strong>{{ resultado.notificaciones | join(', ') }}</strong></span>
+      </div>
       <a class="boton primario" href="{{ url_for('opcionRegistrarRecepcionBolsin') }}">Registrar otra recepción</a>
     </section>
   {% elif not finalizado %}
 
     {# ---------- Pasos 3-5: listado y filtro de bolsines ---------- #}
     {% if solicitaFiltro %}
-      <section class="tarjeta">
-        <h2>Bolsines enviados</h2>
+      <section class="tarjeta {{ 'compacta' if remitos else '' }}">
+        <div class="tarjeta-cabecera">
+          <h2>Bolsines enviados</h2>
+          <span class="contador">{{ bolsines | length }} {{ 'bolsín' if bolsines | length == 1 else 'bolsines' }}</span>
+        </div>
         <form class="filtro" method="post" action="{{ url_for('tomarFiltro') }}">
-          <label>Nro. de precinto <input name="precinto" value="{{ filtro.precinto }}" inputmode="numeric"></label>
-          <label>CM origen <input name="cmOrigen" value="{{ filtro.cmOrigen }}"></label>
+          <label>Nro. de precinto
+            <input name="precinto" value="{{ filtro.precinto }}" inputmode="numeric" placeholder="Ej. 5001">
+          </label>
+          <label>CM origen
+            <input name="cmOrigen" value="{{ filtro.cmOrigen }}" placeholder="Ej. Córdoba">
+          </label>
           <button class="boton" type="submit">Filtrar</button>
+          {% if filtro.precinto or filtro.cmOrigen %}
+            <a class="enlace" href="{{ url_for('opcionRegistrarRecepcionBolsin') }}">Limpiar filtro</a>
+          {% endif %}
         </form>
 
         {% if solicitaSeleccionBolsin and bolsines %}
           <form method="post" action="{{ url_for('tomarSeleccionBolsin') }}">
-            <table>
-              <thead><tr><th></th><th>CM origen</th><th>Nro. de precinto</th></tr></thead>
-              <tbody>
+            <div class="lista-bolsines" role="radiogroup" aria-label="Bolsines">
               {% for b in bolsines %}
-                <tr>
-                  <td><input type="radio" name="numeroBolsin" value="{{ b.numeroBolsin }}" id="b{{ b.numeroBolsin }}"
-                             {% if bolsinSeleccionado == b.numeroBolsin %}checked{% endif %} required></td>
-                  <td><label for="b{{ b.numeroBolsin }}">{{ b.cmOrigen }}</label></td>
-                  <td>{{ b.numeroPrecinto }}</td>
-                </tr>
+                <label class="item-bolsin">
+                  <input type="radio" name="numeroBolsin" value="{{ b.numeroBolsin }}"
+                         {% if bolsinSeleccionado == b.numeroBolsin %}checked{% endif %} required>
+                  <span class="item-bolsin-cuerpo">
+                    <span class="item-bolsin-titulo">Bolsín {{ b.numeroBolsin }}</span>
+                    <span class="item-bolsin-dato"><small>CM origen</small>{{ b.cmOrigen }}</span>
+                    <span class="item-bolsin-dato"><small>Nro. de precinto</small><span class="num">{{ b.numeroPrecinto }}</span></span>
+                  </span>
+                </label>
               {% endfor %}
-              </tbody>
-            </table>
+            </div>
             <button class="boton primario" type="submit">Seleccionar bolsín</button>
           </form>
         {% endif %}
@@ -70,43 +131,56 @@
 
     {# ---------- Pasos 6-8: remitos, documentación y opciones ---------- #}
     {% if remitos %}
-      <section class="tarjeta">
-        <h2>Contenido registrado del bolsín</h2>
-        <form method="post" action="{{ url_for('tomarSeleccionOpcion') }}">
+      <section class="tarjeta" id="contenido">
+        <div class="tarjeta-cabecera">
+          <h2>Contenido registrado del bolsín {{ bolsinSeleccionado }}</h2>
+          <span class="contador">{{ remitos | length }} {{ 'remito' if remitos | length == 1 else 'remitos' }}</span>
+        </div>
+        <form method="post" action="{{ url_for('tomarSeleccionOpcion') }}" id="formOpcion">
           {% set editable = solicitaOpcion %}
+
           {% for r in remitos %}
-            <h3>Remito {{ r.numero }}</h3>
-            <table>
-              <thead><tr><th title="Documentación afectada (opciones 2, 3 y 4)">Afectada</th>
-                         <th>Asunto</th><th>Tipo de documentación</th></tr></thead>
-              <tbody>
-              {% for d in r.documentacion %}
-                <tr>
-                  <td><input type="checkbox" name="documentacion" value="{{ d.numero }}"
-                             {% if d.numero in docsMarcados %}checked{% endif %}
-                             {% if not editable %}disabled{% endif %}></td>
-                  <td>{{ d.asunto }}</td>
-                  <td>{{ d.tipo }}</td>
-                </tr>
-              {% endfor %}
-              </tbody>
-            </table>
+            <div class="remito">
+              <h3>Remito {{ r.numero }}</h3>
+              <div class="tabla-scroll">
+              <table>
+                <thead><tr><th class="col-check" title="Documentación afectada (opciones 2, 3 y 4)">Afectada</th>
+                           <th>Asunto</th><th>Tipo de documentación</th></tr></thead>
+                <tbody>
+                {% for d in r.documentacion %}
+                  <tr>
+                    <td class="col-check"><input type="checkbox" name="documentacion" value="{{ d.numero }}"
+                               class="check-doc" aria-label="Marcar documentación {{ d.numero }} como afectada"
+                               {% if d.numero in docsMarcados %}checked{% endif %}
+                               {% if not editable %}disabled{% endif %}></td>
+                    <td>{{ d.asunto }}</td>
+                    <td>{{ d.tipo }}</td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+              </div>
+            </div>
           {% endfor %}
 
-          <h3>Opciones de recepción</h3>
+          <h3 class="subtitulo">Opciones de recepción</h3>
           <div class="opciones">
           {% for numero, texto in opciones.items() %}
             <label class="opcion">
               <input type="radio" name="opcion" value="{{ numero }}" required
                      {% if opcionSeleccionada == numero %}checked{% endif %}
                      {% if not editable %}disabled{% endif %}>
-              {{ numero }}. {{ texto }}
+              <span class="opcion-num">{{ numero }}</span>
+              <span>{{ texto }}</span>
             </label>
           {% endfor %}
           </div>
-          <p class="nota">Para las opciones 2, 3 y 4 marque la documentación afectada; el resto se registra como Recibida y Aceptada.</p>
+          <p class="nota" id="ayudaAfectada">Para las opciones 2, 3 y 4 marque la documentación afectada; el resto se registra como Recibida y Aceptada.</p>
+
           {% if editable %}
-            <button class="boton primario" type="submit">Registrar recepción</button>
+            <div class="barra-acciones">
+              <button class="boton primario" type="submit">Registrar recepción</button>
+            </div>
           {% endif %}
         </form>
       </section>
@@ -114,17 +188,20 @@
 
     {# ---------- Pasos 9-10: confirmación ---------- #}
     {% if confirmacion %}
-      <section class="tarjeta destacada">
-        <h2>Confirmar registro</h2>
-        <ul>
-          <li>Bolsín {{ confirmacion.numeroBolsin }} · precinto {{ confirmacion.numeroPrecinto }} · CM destino {{ confirmacion.cmDestino }}</li>
-          <li>Opción: {{ confirmacion.opcion }}</li>
-          {% if confirmacion.documentacionAfectada %}
-            <li>Documentación {{ confirmacion.documentacionAfectada | join(', ') }} pasará a <strong>{{ confirmacion.estadoDocAfectada }}</strong>; el resto, a Recibida y Aceptada.</li>
-          {% else %}
-            <li>Toda la documentación pasará a <strong>Recibida y Aceptada</strong>.</li>
-          {% endif %}
-        </ul>
+      <section class="tarjeta destacada" id="confirmacion">
+        <div class="tarjeta-cabecera"><h2>Confirmar registro</h2></div>
+        <dl class="resumen">
+          <div><dt>Bolsín</dt><dd>{{ confirmacion.numeroBolsin }}</dd></div>
+          <div><dt>Precinto</dt><dd>{{ confirmacion.numeroPrecinto }}</dd></div>
+          <div><dt>CM destino</dt><dd>{{ confirmacion.cmDestino }}</dd></div>
+          <div class="ancho"><dt>Opción</dt><dd>{{ confirmacion.opcion }}</dd></div>
+        </dl>
+        {% if confirmacion.documentacionAfectada %}
+          <p>Documentación {{ confirmacion.documentacionAfectada | join(', ') }} pasará a
+             {{ etiquetaEstado(confirmacion.estadoDocAfectada) }}; el resto, a {{ etiquetaEstado('Recibida y Aceptada') }}.</p>
+        {% else %}
+          <p>Toda la documentación pasará a {{ etiquetaEstado('Recibida y Aceptada') }}.</p>
+        {% endif %}
         <form class="acciones" method="post" action="{{ url_for('tomarSeleccionConfirmacion') }}">
           <button class="boton primario" name="confirma" value="si" type="submit">Confirmar</button>
           <button class="boton" name="confirma" value="no" type="submit">No confirmar</button>
@@ -132,4 +209,32 @@
       </section>
     {% endif %}
   {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    // Lleva la vista al paso en curso.
+    var destino = document.getElementById('confirmacion') || document.getElementById('contenido');
+    if (destino) destino.scrollIntoView({ block: 'start' });
+
+    // Las casillas de documentación afectada sólo tienen sentido para las opciones 2, 3 y 4.
+    var form = document.getElementById('formOpcion');
+    if (!form) return;
+    var radios = form.querySelectorAll('input[name=opcion]');
+    var checks = form.querySelectorAll('.check-doc');
+    if (!radios.length || radios[0].disabled) return;
+    function actualizar() {
+      var sel = form.querySelector('input[name=opcion]:checked');
+      var requiere = !sel || sel.value !== '1';
+      form.classList.toggle('sin-afectada', !requiere);
+      checks.forEach(function (c) {
+        c.disabled = !requiere;
+        if (!requiere) c.checked = false;
+      });
+    }
+    radios.forEach(function (r) { r.addEventListener('change', actualizar); });
+    actualizar();
+  })();
+</script>
 {% endblock %}

@@ -1,8 +1,50 @@
 {% extends "base.html" %}
 {% block titulo %}Inicio · Bolsines{% endblock %}
 {% block contenido %}
-  <h1>Menú del Encargado de Bolsines</h1>
-  <div class="tarjeta">
-    <a class="boton primario" href="{{ url_for('opcionRegistrarRecepcionBolsin') }}">Registrar recepción de bolsín</a>
+  <section class="portada">
+    <p class="antetitulo">Menú del Encargado de Bolsines</p>
+    <h1><span id="saludo">¡Hola!</span> ¿Qué querés hacer hoy?</h1>
+    <p class="contexto">Elegí una opción para empezar. Tu sesión ya está iniciada, así que podés arrancar directamente.</p>
+  </section>
+
+  <div class="grilla-menu">
+    <a class="tarjeta-menu activa" href="{{ url_for('opcionRegistrarRecepcionBolsin') }}">
+      <span class="tarjeta-menu-icono" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></svg>
+      </span>
+      <span class="tarjeta-menu-cu">CU 28</span>
+      <strong>Registrar recepción de bolsín</strong>
+      <span class="tarjeta-menu-desc">Seleccioná un bolsín enviado, revisá sus remitos y registrá cómo llegó la documentación.</span>
+      <span class="tarjeta-menu-accion">Comenzar →</span>
+    </a>
+    <div class="tarjeta-menu deshabilitada" aria-disabled="true">
+      <span class="tarjeta-menu-icono" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+      </span>
+      <span class="tarjeta-menu-cu">CU 29</span>
+      <strong>Notificar recepción de bolsín</strong>
+      <span class="tarjeta-menu-desc">Se ejecuta automáticamente al final del CU 28 (include).</span>
+    </div>
+    <div class="tarjeta-menu deshabilitada" aria-disabled="true">
+      <span class="tarjeta-menu-icono" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+      </span>
+      <span class="tarjeta-menu-cu">CU 31</span>
+      <strong>Registrar revisión de documentación</strong>
+      <span class="tarjeta-menu-desc">Fuera del alcance de esta entrega.</span>
+    </div>
   </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var h = new Date().getHours();
+    var saludo = h < 12 ? '¡Buen día!' : (h < 20 ? '¡Buenas tardes!' : '¡Buenas noches!');
+    document.getElementById('saludo').textContent = saludo;
+  })();
+</script>
 {% endblock %}

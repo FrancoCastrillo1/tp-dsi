@@ -4,15 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Bolsines{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='estilos.css') }}">
 </head>
 <body>
   <header class="barra">
-    <a class="marca" href="{{ url_for('inicio') }}">Bolsines</a>
-    <span class="sub">Organismo Controlador · Gestión de bolsines</span>
+    <div class="barra-interior">
+      <a class="marca" href="{{ url_for('inicio') }}">
+        <span class="marca-icono" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>
+        </span>
+        <span>
+          <span class="marca-nombre">Bolsines</span>
+          <span class="marca-sub">Organismo Controlador · Gestión de bolsines</span>
+        </span>
+      </a>
+      {% block usuario %}{% endblock %}
+    </div>
   </header>
   <main class="contenedor">
     {% block contenido %}{% endblock %}
   </main>
+  <footer class="pie">PPAI · CU 28 Registrar recepción de bolsín · Patrón Iterator</footer>
+  {% block scripts %}{% endblock %}
 </body>
 </html>
